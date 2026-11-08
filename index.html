@@ -10,18 +10,18 @@
 <section id="settings" class="panel hidden"><h2>表示設定</h2><label>文字サイズ：<output id="sizeVal">32</output>px</label><input id="fontSize" type="range" min="18" max="72" value="32" oninput="updateSettings()"><label>自動スクロール速度：<output id="speedVal">25</output>px/秒</label><input id="speed" type="range" min="5" max="120" value="25" oninput="updateSettings()"><button onclick="toggleFullscreen()">全画面表示</button><p class="muted">設定と入力した歌詞はこのブラウザに保存されます。Teslaブラウザの保存データが消えると失われます。</p></section>
 <section class="panel" id="display"><div id="songTitle">サンプル曲</div><div id="artist">KasiView</div><div id="viewer"><div id="lyrics"></div></div><div class="controls"><button onclick="page(-1)">◀ 前へ</button><button id="play" class="primary" onclick="toggleScroll()">▶ 自動スクロール</button><button onclick="page(1)">次へ ▶</button><button onclick="resetScroll()">先頭へ</button><button onclick="toggleFocus()">集中表示</button></div><p id="status" class="muted" style="text-align:center"></p></section>
 </main><script>
-const $=id=>document.getElementById(id);let running=false,last=0,frame=0;
-const sample='空を見上げて\n風の音を聞いて\nゆっくり歩いていこう\n\n新しい景色が\n今日も待っている\n\n小さな一歩から\n明日が始まる\n\n（これは動作確認用のオリジナル文章です）';
+const $=id=>document.getElementById(id);let running=false,last=0,frame=0,scrollPosition=0;
+const sample=Array.from({length:12},(_,i)=>`【${i+1}番】\n空を見上げて\n風の音を聞いて\nゆっくり歩いていこう\n\n新しい景色が\n今日も待っている\n\n小さな一歩から\n明日が始まる`).join('\n\n')+'\n\n（これは動作確認用のオリジナル文章です）';
 function show(id){for(const x of ['editor','links','settings'])$(x).classList.toggle('hidden',x!==id);document.body.classList.remove('compact')}
-function applyLyrics(){stop();$('lyrics').textContent=$('textInput').value||sample;$('songTitle').textContent=$('titleInput').value||'無題';$('artist').textContent=$('artistInput').value||'';$('viewer').scrollTop=0;persist();$('status').textContent='歌詞を表示しました'}
+function applyLyrics(){stop();scrollPosition=0;$('lyrics').textContent=$('textInput').value||sample;$('songTitle').textContent=$('titleInput').value||'無題';$('artist').textContent=$('artistInput').value||'';$('viewer').scrollTop=0;persist();$('status').textContent='歌詞を表示しました'}
 function loadSample(){$('titleInput').value='サンプル曲';$('artistInput').value='KasiView';$('textInput').value=sample;applyLyrics()}
 function loadFile(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{$('textInput').value=String(reader.result).replace(/^\[[0-9:.]+\]/gm,'');$('titleInput').value=f.name.replace(/\.(txt|lrc)$/i,'');applyLyrics()};reader.readAsText(f)}
 function updateSettings(){$('sizeVal').textContent=$('fontSize').value;$('speedVal').textContent=$('speed').value;$('lyrics').style.fontSize=$('fontSize').value+'px';persist()}
-function step(t){if(!running)return;if(last)$('viewer').scrollTop+=(t-last)*Number($('speed').value)/1000;last=t;if($('viewer').scrollTop+$('viewer').clientHeight >= $('viewer').scrollHeight-2){stop();return}frame=requestAnimationFrame(step)}
+function step(t){if(!running)return;if(last){scrollPosition+=(t-last)*Number($('speed').value)/1000;$('viewer').scrollTop=scrollPosition}last=t;if(scrollPosition+$('viewer').clientHeight >= $('viewer').scrollHeight-2){stop();$('status').textContent='最後まで表示しました';return}frame=requestAnimationFrame(step)}
 function stop(){running=false;cancelAnimationFrame(frame);last=0;$('play').textContent='▶ 自動スクロール'}
-function toggleScroll(){if(running){stop();return}running=true;$('play').textContent='Ⅱ 一時停止';frame=requestAnimationFrame(step)}
+function toggleScroll(){if(running){stop();$('status').textContent='一時停止中';return}const v=$('viewer');if(v.scrollHeight<=v.clientHeight+2){$('status').textContent='歌詞が表示領域に収まっています。長い歌詞を読み込むか文字サイズを大きくしてください。';return}if(v.scrollTop+v.clientHeight>=v.scrollHeight-2)v.scrollTop=0;scrollPosition=v.scrollTop;running=true;last=0;$('status').textContent='自動スクロール中（'+$('speed').value+'px/秒）';$('play').textContent='Ⅱ 一時停止';frame=requestAnimationFrame(step)}
 function page(d){stop();$('viewer').scrollBy({top:d*$('viewer').clientHeight*.85,behavior:'smooth'})}
-function resetScroll(){stop();$('viewer').scrollTo({top:0,behavior:'smooth'})}
+function resetScroll(){stop();scrollPosition=0;$('viewer').scrollTo({top:0,behavior:'smooth'})}
 function toggleFocus(){document.body.classList.toggle('compact');$('viewer').scrollTop=0}
 function toggleFullscreen(){if(document.fullscreenElement){document.exitFullscreen?.()}else{document.documentElement.requestFullscreen?.().catch(()=>{})}}
 function searchPetit(){const q=$('query').value.trim();window.open('https://petitlyrics.com/search_lyrics'+(q?'?title='+encodeURIComponent(q):''),'_blank','noopener')}
